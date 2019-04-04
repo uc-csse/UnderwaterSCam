@@ -55,8 +55,8 @@ def write(img):
         sys.exit(-1)
 
 if __name__=='__main__':
-    img1=cv2.resize(cv2.imread('./golden-retriever-puppy.jpg'),(W,H))
-    img2=cv2.resize(cv2.imread('./kitten.jpg'),(W,H))
+    img1=cv2.resize(cv2.imread('./left.png'),(W,H))
+    img2=cv2.resize(cv2.imread('./right.png'),(W,H))
     init()
     while 1:
         write(img1)
