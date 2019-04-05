@@ -30,7 +30,7 @@ class Sender(threading.Thread):
         lib = ctypes.CDLL('./rgb888_to_rgb565.so')
         lib.RGB888_to_RGB565.argtypes=[ctypes.c_char_p,ctypes.c_char_p,ctypes.c_int]
         oimg_buf=bytes(W*H*S*2)
-        ser = serial.Serial('/dev/ttyUSB1',3000000)  # open serial port
+        ser = serial.Serial('/dev/ttyUSB-LCD',3000000)  # open serial port
         while keep_running:
             if img_to_send is None:
                 time.sleep(0.001)

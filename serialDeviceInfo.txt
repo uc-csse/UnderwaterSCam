@@ -1,0 +1,15 @@
+Vector Nav:
+	lsusb:
+	Bus 001 Device 002: ID 0403:6001 Future Technology Devices International, Ltd FT232 USB-Serial (UART) IC
+	ATTRS{serial}=="FTXLTQNI"
+	udev rule:
+	SUBSYSTEMS=="usb", ATTRS{serial}=="FTXLTQNI", MODE="0666", SYMLINK+="ttyUSB-VECTORNAV"
+
+ESP-LCD:
+	lsusb:
+	Bus 001 Device 010: ID 1a86:7523 QinHeng Electronics HL-340 USB-Serial adapter
+	TTRS{serial}=="0000:00:15.0"
+	udev rule:
+	SUBSYSTEMS=="usb", ATTRS{serial}=="0000:00:15.0", MODE="0666", SYMLINK+="ttyUSB-LCD"                                                                                                            
+                                  
+IO Arduino:
