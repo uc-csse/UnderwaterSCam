@@ -1,0 +1,37 @@
+192.168.20.1   => 3232240641
+192.168.20.101 => 3232240741
+192.168.20.102 => 3232240742
+/24            => 4294967040
+192.168.21.1   => 3232240897
+192.168.21.101 => 3232240997
+192.168.21.102 => 3232240998
+
+
+>>> import PySpin
+>>> sys = PySpin.System.GetInstance()
+>>> cams = sys.GetCameras()
+>>> cams.GetSize()
+1
+>>> cam = cams[0]
+>>> cam.Init()
+
+>>> cam.GevCurrentIPConfigurationPersistentIP.SetValue(True)
+>>> cam.GevCurrentIPConfigurationPersistentIP()
+True
+
+
+>>> cam.GevPersistentIPAddress.SetValue(3232240741)
+>>> cam.GevPersistentIPAddress()
+3232240741
+
+
+>>> cam.GevPersistentSubnetMask.SetValue(4294967040) # /24
+>>> cam.GevPersistentSubnetMask()
+4294967040
+
+>>> cam.GevPersistentDefaultGateway.SetValue(3232240641)
+>>> cam.GevPersistentDefaultGateway()
+3232240641
+
+
+
