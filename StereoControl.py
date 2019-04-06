@@ -199,6 +199,8 @@ def main ():
 
     time.sleep(2)
     ser.write(b'\x01') 
+    voltage_byte=0
+    amps_byte=0
 
     while True:
         while ser.in_waiting:
@@ -219,7 +221,7 @@ def main ():
             r, buff = cv2.imencode(".jpg", handlers[config.right_camera["serial"]].colour_data )
             socket.send(b"r"+buff.tostring())
 
-        socket.send_string("s%d" %(1 if RECORDING else 0))
+        socket.send_string("s%d,%d,%d" %(1 if RECORDING else 0,voltage_byte,amps_byte))
         time.sleep(0.1)
     jpg_thread.join()
     pgm_thread.join()

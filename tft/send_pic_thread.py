@@ -67,12 +67,14 @@ stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "l")
 stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "r")
 stereo_sock.setsockopt(zmq.CONFLATE, 1)
 recording = False
+voltage = 0
+amps = 0
 
 left_buffer = np.zeros((H,W,3), np.uint8)
 right_buffer = np.zeros((H,W,3), np.uint8)
 
 def update_status():
-    global recording
+    global recording,voltage,amps
     global keep_running
     global left_buffer
     global right_buffer
@@ -81,7 +83,10 @@ def update_status():
             msg = stereo_sock.recv()
             if msg[:1] == b's':
                 msg = msg.decode("ascii")
-                recording = True if int(msg[1]) == 1 else False
+                recording,voltage,amps=msg[1:].split(',')
+                recording = True if int(recording) == 1 else False
+                voltage = int(voltage)/10.0
+                
             elif msg[:1] == b'l':
                 data = np.fromstring(msg[1:],np.uint8)
                 img = cv2.imdecode(data, 1)
@@ -119,8 +124,8 @@ if __name__=='__main__':
         col = (0,0,255) if recording else (255,255,255)
 
         total, used, free = shutil.disk_usage(".")
-        cv2.putText(fb,"%0.1f GB"% (free / (2**30)),(5,220),1,2,(0,0,0),5);
-        cv2.putText(fb,"%0.1f GB"% (free / (2**30)),(5,220),1,2,col,2);
+        cv2.putText(fb,"%0.1f GB %0.1fV"% (free / (2**30),voltage),(5,220),1,2,(0,0,0),5);
+        cv2.putText(fb,"%0.1f GB %0.1fV"% (free / (2**30),voltage),(5,220),1,2,col,2);
 
         write(fb)
         time.sleep(2)
