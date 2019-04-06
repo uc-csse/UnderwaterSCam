@@ -1,6 +1,7 @@
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 import serial,time
 import ctypes,cv2
+import numpy as np
 import threading
 
 import signal
@@ -27,7 +28,7 @@ class Sender(threading.Thread):
         global img_to_send
         S=24
         C=H//S #chunk to send
-        lib = ctypes.CDLL('./rgb888_to_rgb565.so')
+        lib = ctypes.CDLL('/home/stereo/UnderwaterSCam/tft/rgb888_to_rgb565.so')
         lib.RGB888_to_RGB565.argtypes=[ctypes.c_char_p,ctypes.c_char_p,ctypes.c_int]
         oimg_buf=bytes(W*H*S*2)
         ser = serial.Serial('/dev/ttyUSB-LCD',3000000)  # open serial port
@@ -61,17 +62,35 @@ def write(img):
 context = zmq.Context()
 stereo_sock = context.socket(zmq.SUB)
 stereo_sock.connect("tcp://localhost:5556")
-stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "status")
+stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "s")
+stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "l")
+stereo_sock.setsockopt_string(zmq.SUBSCRIBE, "r")
 stereo_sock.setsockopt(zmq.CONFLATE, 1)
 recording = False
+
+left_buffer = np.zeros((H,W,3), np.uint8)
+right_buffer = np.zeros((H,W,3), np.uint8)
 
 def update_status():
     global recording
     global keep_running
+    global left_buffer
+    global right_buffer
     while keep_running:
         try:
-            status = stereo_sock.recv_string()
-            recording = True if int(status.split(":")[1]) == 1 else False
+            msg = stereo_sock.recv()
+            if msg[:1] == b's':
+                msg = msg.decode("ascii")
+                recording = True if int(msg[1]) == 1 else False
+            elif msg[:1] == b'l':
+                data = np.fromstring(msg[1:],np.uint8)
+                img = cv2.imdecode(data, 1)
+                left_buffer = cv2.resize(img, (W,H))
+            elif msg[:1] == b'r':
+                data = np.fromstring(msg[1:],np.uint8)
+                img = cv2.imdecode(data, 1)
+                right_buffer = cv2.resize(img, (W,H))
+
         except zmq.ZMQError as e:
             print(e)
             break
@@ -80,17 +99,23 @@ def update_status():
 if __name__=='__main__':
     import shutil
 
-    img1=cv2.resize(cv2.imread('./left.png'),(W,H))
-    img2=cv2.resize(cv2.imread('./right.png'),(W,H))
+
     init()
 
     threading.Thread(target=update_status).start()
-
+    count = 0
     while 1:
 
+        if count%2 == 0:
+            fb = left_buffer.copy()
+            cv2.putText(fb,"left",(5,30),1,2,(0,0,0),5);
+            cv2.putText(fb,"left",(5,30),1,2,(255,255,255),2);
+        else:
+            fb = right_buffer.copy()
+            cv2.putText(fb,"right",(5,30),1,2,(0,0,0),5);
+            cv2.putText(fb,"right",(5,30),1,2,(255,255,255),2);
 
-        fb = img1.copy()
-        cv2.putText(fb,"192.168.X.X",(5,20),1,1,(0,0,255));
+
         col = (0,0,255) if recording else (255,255,255)
 
         total, used, free = shutil.disk_usage(".")
@@ -98,6 +123,6 @@ if __name__=='__main__':
         cv2.putText(fb,"%0.1f GB"% (free / (2**30)),(5,220),1,2,col,2);
 
         write(fb)
-        img1,img2=img2,img1
         time.sleep(2)
-        print('----',time.time())
+        count += 1
+        #print('----',time.time())
