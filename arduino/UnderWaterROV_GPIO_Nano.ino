@@ -21,7 +21,7 @@
 #define BATT_AMP_OFFSET 0.330
 #define BATT_AMP_PERVOLT 37.8788
 #define ADC_VOLTAGE_MUL 0.0048828
-#define BATT_VOLT_MULT 11
+#define BATT_VOLT_MULT 10
 
 void setup() {
   // put your setup code here, to run once:
@@ -79,7 +79,7 @@ void loop() {
     adc_volt = (float) analogRead(VOLTAGE_ADC_PIN);
     adc_amps = (float) analogRead(CURRENT_ADC_PIN);
     batt_voltage = (byte) min(round(10 * adc_volt * ADC_VOLTAGE_MUL * BATT_VOLT_MULT), 254);
-    batt_current = (byte) min(round(10 * adc_amps * ADC_VOLTAGE_MUL * BATT_AMP_PERVOLT + BATT_AMP_OFFSET), 254);
+    batt_current = (byte) min(round(10 * (adc_amps * ADC_VOLTAGE_MUL + BATT_AMP_OFFSET) * BATT_AMP_PERVOLT), 254);
     byte messege[4] = {255, (byte) rec, batt_voltage, batt_current};
     Serial.write(messege, 4);
   }
