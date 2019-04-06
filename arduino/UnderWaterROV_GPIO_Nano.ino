@@ -8,7 +8,7 @@
 #define CURRENT_ADC_PIN 6
 
 //Camera trigger stuff
-#define TRIG_FPS 10
+#define TRIG_FPS 5
 #define TRIGGER_RATE_MICROS (1000000/TRIG_FPS)
 #define TRIGGER_RATE_MICROS_HALF (TRIGGER_RATE_MICROS/2)
 
