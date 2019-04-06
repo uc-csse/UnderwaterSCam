@@ -1,3 +1,4 @@
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
 import PySpin
 import time
 import config
@@ -5,8 +6,15 @@ import cv2
 import threading
 import os
 import zmq
+import serial
+import sys, traceback
 
 RECORDING = False
+print('start ',time.time())
+
+
+ser = serial.Serial('/dev/ttyUSB-IO',baudrate=115200,timeout=0.01)
+
 
 def logError(message):
     print("Error:",message)
@@ -22,6 +30,8 @@ class ImageEventHandler(PySpin.ImageEvent):
         self.colour_data = b""
         self.width = 0;
         self.height = 0;
+        self.name = 'na'
+        self.directory = None
         print("Handler attached to camera: %d" %self.device_serial_number)
         del camera
 
@@ -37,12 +47,28 @@ class ImageEventHandler(PySpin.ImageEvent):
                 #print("%d got image %d" %(self.device_serial_number,self.count))
                 width = image.GetWidth()
                 height = image.GetHeight()
+                try:
+                    image_converted = image.Convert(PySpin.PixelFormat_BGR8, PySpin.HQ_LINEAR)
+                    self.colour_data = image_converted.GetData().reshape((height,width,3))
+                    self.bayer_data = image.GetData().reshape((height,width))
+                    self.width = width
+                    self.height = height
+                    if RECORDING and self.directory is not None:
+                        if self.count%config.jpg_save_rate==0:
+                            imgname = self.directory+'jpg/{:08}-{}.{}'\
+                                .format(self.count,self.name,'jpg')
+                            cv2.imwrite(imgname,self.colour_data)
+                        
+                        if self.count%config.pgm_save_rate==0:
+                            imgname = self.directory+'pgm/{:08}-{}.{}'\
+                                .format(self.count,self.name,'pgm')
+                            cv2.imwrite(imgname,self.bayer_data)
+                except:
+                    print("Error saving images count = ",self.count,'camera',self.name)
+                    print("-"*60)
+                    traceback.print_exc(file=sys.stdout)
+                    print("-"*60)
 
-                image_converted = image.Convert(PySpin.PixelFormat_BGR8, PySpin.HQ_LINEAR)
-                self.colour_data = image_converted.GetData().reshape((height,width,3))
-                self.bayer_data = image.GetData().reshape((height,width))
-                self.width = width
-                self.height = height
 
         except PySpin.SpinnakerException as ex:
             print('Spin Error: %s' % ex)
@@ -52,6 +78,7 @@ class ImageEventHandler(PySpin.ImageEvent):
 def initialiseCamera(camera):
     camera.Init()
 
+    print('after camera init')
     image_event_handler = ImageEventHandler(camera)
     camera.RegisterEvent(image_event_handler)
 
@@ -76,12 +103,12 @@ def save_jpgs(left_handler, right_handler, directory):
     while True:
         timestamp = time.time()
         if left_handler.width != 0 and right_handler.width != 0 and RECORDING:
-            imgname = directory+'{}-left.{}'\
-                .format(timestamp,'jpg')
+            imgname = directory+'{:08}-left.{}'\
+                .format(left_handler.count,'jpg')
             cv2.imwrite(imgname,left_handler.colour_data)
 
-            imgname = directory+'{}-right.{}'\
-                .format(timestamp,'jpg')
+            imgname = directory+'{:08}-right.{}'\
+                .format(right_handler.count,'jpg')
             cv2.imwrite(imgname,right_handler.colour_data)
 
             next_capture_time = next_capture_time + 1.0/config.jpg_save_rate
@@ -97,12 +124,12 @@ def save_pgm(left_handler, right_handler, directory):
     while True:
         timestamp = time.time()
         if left_handler.width != 0 and right_handler.width != 0 and RECORDING:
-            imgname = directory+'{}-left.{}'\
-                .format(timestamp,'pgm')
+            imgname = directory+'{:08}-left.{}'\
+                .format(left_handler.count,'pgm')
             cv2.imwrite(imgname,left_handler.bayer_data)
 
-            imgname = directory+'{}-right.{}'\
-                .format(timestamp,'pgm')
+            imgname = directory+'{:08}-right.{}'\
+                .format(right_handler.count,'pgm')
             cv2.imwrite(imgname,right_handler.bayer_data)
 
             next_capture_time = next_capture_time + 1.0/config.pgm_save_rate
@@ -118,6 +145,10 @@ socket = context.socket(zmq.PUB)
 socket.bind("tcp://*:%d"%config.stereo_port)
 
 def main ():
+    global RECORDING
+    time.sleep(1)
+    ser.write(b'\x00')
+    time.sleep(1)
     system = PySpin.System.GetInstance()
 
     cams = system.GetCameras()
@@ -149,20 +180,37 @@ def main ():
         pass
 
 
+    handlers[config.left_camera["serial"]].name='left'
+    handlers[config.left_camera["serial"]].directory=scan_dir
+    
+    handlers[config.right_camera["serial"]].name='right'
+    handlers[config.right_camera["serial"]].directory=scan_dir
+    #jpg_thread = threading.Thread(target=save_jpgs,
+    #    args=(handlers[config.left_camera["serial"]],
+    #        handlers[config.right_camera["serial"]],
+    #        jpg_dir))
+    #jpg_thread.start()
 
-    jpg_thread = threading.Thread(target=save_jpgs,
-        args=(handlers[config.left_camera["serial"]],
-            handlers[config.right_camera["serial"]],
-            jpg_dir))
-    jpg_thread.start()
+    #pgm_thread = threading.Thread(target=save_pgm,
+    #    args=(handlers[config.left_camera["serial"]],
+    #        handlers[config.right_camera["serial"]],
+    #        pgm_dir))
+    #pgm_thread.start()
 
-    pgm_thread = threading.Thread(target=save_pgm,
-        args=(handlers[config.left_camera["serial"]],
-            handlers[config.right_camera["serial"]],
-            pgm_dir))
-    pgm_thread.start()
+    time.sleep(2)
+    ser.write(b'\x01') 
 
     while True:
+        while ser.in_waiting:
+            print('got bytes', ser.in_waiting)
+            if ser.read()==b'\xff':
+                record_byte=ord(ser.read())
+                RECORDING=True if record_byte==1 else False
+                voltage_byte=ord(ser.read())
+                amps_byte=ord(ser.read())
+                print('record_byte',record_byte,'voltage_byte',voltage_byte,'amps_byte',amps_byte)
+            
+            
         if len(handlers[config.left_camera["serial"]].colour_data) > 0:
             r, buff = cv2.imencode(".jpg", handlers[config.left_camera["serial"]].colour_data )
             socket.send(b"l"+buff.tostring())

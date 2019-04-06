@@ -8,7 +8,7 @@ import signal
 import sys
 
 import zmq
-
+print('start')
 
 keep_running = True
 def signal_handler(sig, frame):

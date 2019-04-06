@@ -7,9 +7,9 @@ right_camera = {
     "serial": "18486662"
 }
 
-pgm_save_rate = 0.5 # 1hz
+pgm_save_rate = 10 # 1hz
 
-jpg_save_rate = 5 # 3hz
+jpg_save_rate = 1 # 3hz
 
 data_dir = "/home/stereo/data/"
 
