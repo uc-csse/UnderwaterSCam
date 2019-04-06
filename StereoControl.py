@@ -39,7 +39,6 @@ class ImageEventHandler(PySpin.ImageEvent):
                 height = image.GetHeight()
 
                 image_converted = image.Convert(PySpin.PixelFormat_BGR8, PySpin.HQ_LINEAR)
-
                 self.colour_data = image_converted.GetData().reshape((height,width,3))
                 self.bayer_data = image.GetData().reshape((height,width))
                 self.width = width
@@ -116,7 +115,7 @@ def save_pgm(left_handler, right_handler, directory):
 
 context = zmq.Context()
 socket = context.socket(zmq.PUB)
-socket.bind("tcp://*:%d"%config.stereo_control_port)
+socket.bind("tcp://*:%d"%config.stereo_port)
 
 def main ():
     system = PySpin.System.GetInstance()
@@ -142,9 +141,12 @@ def main ():
     scan_dir = "/home/stereo/data/"+scan_name+"/"
     jpg_dir = scan_dir+"jpg/"
     pgm_dir = scan_dir+"pgm/"
-    os.mkdir(scan_dir)
-    os.mkdir(jpg_dir)
-    os.mkdir(pgm_dir)
+    try:
+        os.mkdir(scan_dir)
+        os.mkdir(jpg_dir)
+        os.mkdir(pgm_dir)
+    except:
+        pass
 
 
 
@@ -161,10 +163,16 @@ def main ():
     pgm_thread.start()
 
     while True:
-        socket.send_multipart([b"left",handlers[config.left_camera["serial"]].colour_data ])
-        socket.send_multipart([b"right",handlers[config.right_camera["serial"]].colour_data ])
-        socket.send_string("status:%d" %(1 if RECORDING else 0))
-        time.sleep(0.5)
+        if len(handlers[config.left_camera["serial"]].colour_data) > 0:
+            r, buff = cv2.imencode(".jpg", handlers[config.left_camera["serial"]].colour_data )
+            socket.send(b"l"+buff.tostring())
+
+        if len(handlers[config.right_camera["serial"]].colour_data) > 0:
+            r, buff = cv2.imencode(".jpg", handlers[config.right_camera["serial"]].colour_data )
+            socket.send(b"r"+buff.tostring())
+
+        socket.send_string("s%d" %(1 if RECORDING else 0))
+        time.sleep(0.1)
     jpg_thread.join()
     pgm_thread.join()
 
