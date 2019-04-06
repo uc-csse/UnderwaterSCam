@@ -14,4 +14,6 @@ jpg_save_rate = 5 # 3hz
 data_dir = "/home/stereo/data/"
 
 
-stereo_control_port = 5556
+stereo_port = 5556
+imu_port = 5557
+io_port = 5558
